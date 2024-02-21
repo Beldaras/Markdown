@@ -1,19 +1,23 @@
-#!/bin/bash
+# Créer une nouvelle policy
+$policy = New-WBPolicy
 
-# Définir les variables
-SITE_DIR="/var/www/html/"
-VHOST_Dom_DIR="/etc/apache2/sites-available/lma-breizh.local.conf"
-VHOST_Pub_DIR="/etc/apache2/sites-available/public.conf"
-BACKUP_DIR="/root/BackUp-WP"
-DB_USER="root"
-DB_PASS="Jesaispasmoi@"
-DB_NAME="wp_mscyber_ron_jp"
+# Sélectionner les volumes à sauvegarder
+$volumes = Get-WBVolume -AllVolumes | where mountpath -eq "c:,d:"
+Add-WBVolume -Policy $policy -Volume $volumes
 
-# Créer un répertoire de sauvegarde s'il n'existe pas
-mkdir -p $BACKUP_DIR
+# ajoute bare metal recovery, réduit les temps d'arrêt en cas de panne
+Add-WBBareMetalRecovery $Policy
 
-# Sauvegarder les fichiers du site
-cp $SITE_DIR $VHOST_Dom_DIR $VHOST_Pub_DIR /root/BackUp-WP
+# Définir le disque de backup
+$disks = Get-WBDisk
+$backupLocation = New-WBBackupTarget -Disk $disks[1]
+Add-WBBackupTarget -Policy $policy -Target $backupLocation
 
-# Sauvegarder la base de données du site
-mysqldump -u $DB_USER -p$DB_PASS $DB_NAME > $BACKUP_DIR/db_backup_$(date +%Y%m%d).sql
+# Réaliser un état du système
+Add-WBSystemState -Policy $policy
+
+# Planification de l'heure pour effectuer des sauvegardes quotidiennes
+Set-WBSchedule -Policy $policy 22:00
+
+# Activer la policy
+Set-WBPolicy -Policy $policy
